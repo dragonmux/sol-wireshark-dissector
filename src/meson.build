@@ -16,7 +16,7 @@ wiresharkVersion = wireshark.version()
 wiresharkVersion = wiresharkVersion.split('.')
 
 dissectorSrc = [
-	'sol.cxx', 'frameDissector.cxx', 'packetDissector.cxx'
+	'sol.cxx', 'frameReassembly.cxx', 'frameDissector.cxx', 'packetDissector.cxx'
 ]
 
 dissector = shared_library(
