@@ -89,7 +89,7 @@ namespace sol::frameReassembly
 		solAnalyzerFrameProtocol = proto_register_protocol(
 			"SOL USB Analyzer Protocol Framing",
 			"SOL_USB_Analyzer_Framing",
-			"sol.analyzer.frame"
+			"sol.analyzer.framing"
 		);
 
 		reassembly_table_register(&frameReassemblyTable, &addresses_ports_reassembly_table_functions);
@@ -97,7 +97,7 @@ namespace sol::frameReassembly
 
 	void registerHandoff()
 	{
-		auto handle = register_dissector("sol.analyzer.frame", dissectFraming, solAnalyzerFrameProtocol);
+		auto handle = register_dissector("sol.analyzer.reassembly", dissectFraming, solAnalyzerFrameProtocol);
 		// Register for interface class 0xffU (application-defined)
 		dissector_add_uint("usb.bulk", 0xffU, handle);
 	}
