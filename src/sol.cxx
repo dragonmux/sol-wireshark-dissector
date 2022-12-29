@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include <epan/packet.h>
+#include <substrate/console>
 
 #include "deviceDissector.hxx"
 #include "frameReassembly.hxx"
 #include "frameDissector.hxx"
 #include "packetDissector.hxx"
+
+using substrate::console;
 
 extern "C"
 {
@@ -27,6 +30,9 @@ static proto_plugin packetDissector;
 // Register the native wireshark plugin
 void plugin_register()
 {
+	// Setup substrate::console so the frame reassembly dissector can post errors
+	console = {stdout, stderr};
+
 	// Register the device dissector
 	deviceDissector.register_protoinfo = sol::deviceDissector::registerProtoInfo;
 	deviceDissector.register_handoff = sol::deviceDissector::registerHandoff;
