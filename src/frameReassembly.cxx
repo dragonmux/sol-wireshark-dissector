@@ -96,6 +96,10 @@ namespace sol::frameReassembly
 			"sol.analyzer.framing"
 		);
 
+		proto_register_field_array(solAnalyzerFrameProtocol, fields.data(), fields.size());
+		// Generate subtree indices
+		proto_register_subtree_array(ett.data(), ett.size());
+
 		reassembly_table_register(&frameReassemblyTable, &addresses_ports_reassembly_table_functions);
 	}
 
