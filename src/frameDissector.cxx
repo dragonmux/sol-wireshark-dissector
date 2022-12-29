@@ -8,7 +8,7 @@ namespace sol::frameDissector
 {
 	using namespace internal;
 
-	int dissectFrame(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
+	static int dissectFrame(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
 	{
 		proto_item *protocol{};
 		auto *const subtree = proto_tree_add_subtree(tree, buffer, 0, -1, ettSOLAnalyzerFrame, &protocol,
