@@ -72,7 +72,27 @@ namespace sol::frameReassembly
 		// If the frame has been reassembled
 		if (fragment)
 		{
-			//
+			const auto frameNumber{*static_cast<uint32_t *>(p_get_proto_data(wmem_file_scope(), pinfo,
+				solAnalyzerFrameProtocol, 0))};
+
+			// If this packet is not the final reassembled frame
+			if (fragment->reassembled_in != pinfo->num)
+			{
+				col_add_fstr(pinfo->cinfo, COL_INFO, "[Fragmented Frame #%u] Size %u", frameNumber, fragment->len);
+
+				// Add the raw buffer data to the tree
+				proto_tree_add_item(tree, hfFrameData, fragment->tvb_data, fragment->offset, -1, ENC_NA);
+				// And output the frame reassembly hyperlink in tree due to this not being the
+				// final frame in the assembly sequence
+				process_reassembled_data(fragment->tvb_data, fragment->offset, pinfo, "Reassembled Analyser Data Frame",
+					fragment, &solAnalyzerFrameItems, NULL, tree);
+				return len;
+			}
+
+			buffer = process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame", fragment,
+				&solAnalyzerFrameItems, NULL, tree);
+			// Set the info column text appropriately
+			col_add_fstr(pinfo->cinfo, COL_INFO, "[Frame #%u (%u)]", frameNumber, fragment->datalen);
 		}
 		// If we're in the middle of reassembly, and have a valid frame
 		else if (frameFragment)
