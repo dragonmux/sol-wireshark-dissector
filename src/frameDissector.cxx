@@ -15,6 +15,8 @@ namespace sol::frameDissector
 		proto_item *protocol{};
 		auto *const subtree = proto_tree_add_subtree(tree, buffer, 0, -1, ettSOLAnalyzerFrame, &protocol,
 			"SOL Analyzer Frame");
+		uint32_t frameLength;
+		proto_tree_add_item_ret_uint(subtree, hfFrameLength, buffer, 0, 2, ENC_BIG_ENDIAN, &frameLength);
 		return 0;
 	}
 
@@ -26,6 +28,7 @@ namespace sol::frameDissector
 			"sol.analyzer"
 		);
 
+		proto_register_field_array(solAnalyzerFrameProtocol, fields.data(), fields.size());
 		proto_register_subtree_array(ett.data(), ett.size());
 	}
 
