@@ -21,8 +21,7 @@ namespace sol::frameReassembly
 	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree)
 	{
 		uint32_t bufferLength = tvb_captured_length(buffer);
-		uint32_t offset{};
-		for (; offset < bufferLength; )
+		for (uint32_t offset{}; offset < bufferLength;)
 		{
 			// ntohs == be16toHost
 			const auto frameLength = tvb_get_ntohs(buffer, offset) + 2U;
@@ -42,7 +41,7 @@ namespace sol::frameReassembly
 			++processedFrames;
 			offset += frameLength;
 		}
-		return offset;
+		return bufferLength;
 	}
 
 	static int dissectFraming(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
