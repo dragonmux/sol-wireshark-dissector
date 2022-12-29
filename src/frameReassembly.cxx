@@ -88,8 +88,18 @@ namespace sol::frameReassembly
 				return len;
 			}
 
-			buffer = process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame", fragment,
-				&solAnalyzerFrameItems, NULL, tree);
+			auto *const frameBuffer{process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame",
+				fragment, &solAnalyzerFrameItems, NULL, tree)};
+			// Process the reassembled part of the frame
+			if (fragment->len < len)
+			{
+				processFrames(frameBuffer, pinfo, tree);
+				buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
+			}
+			else
+				buffer = frameBuffer;
+			// Now handle the rest
+
 			// Set the info column text appropriately
 			col_add_fstr(pinfo->cinfo, COL_INFO, "[Frame #%u (%u)]", frameNumber, fragment->datalen);
 		}
@@ -133,17 +143,16 @@ namespace sol::frameReassembly
 			// If we have a valid reassembled frame
 			if (fragment)
 			{
+				auto *const frameBuffer{process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame",
+					fragment, &solAnalyzerFrameItems, NULL, tree)};
 				// If the frame did not consume the entire incomming buffer, process the reassembled frame specially
 				if (offset + len > frame.totalLength)
 				{
-					auto *const frameBuffer{process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame",
-						fragment, &solAnalyzerFrameItems, NULL, tree)};
 					processFrames(frameBuffer, pinfo, tree);
 					buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
 				}
 				else
-					buffer = process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame", fragment,
-						&solAnalyzerFrameItems, NULL, tree);
+					buffer = frameBuffer;
 			}
 			else
 			{
