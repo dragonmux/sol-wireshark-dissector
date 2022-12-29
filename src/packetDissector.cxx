@@ -2,9 +2,12 @@
 #include <epan/packet.h>
 
 #include "packetDissector.hxx"
+#include "packetDissectorInternal.hxx"
 
 namespace sol::packetDissector
 {
+	using namespace internal;
+
 	int dissectPacket(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
 	{
 		return 0;

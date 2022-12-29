@@ -2,9 +2,12 @@
 #include <epan/packet.h>
 
 #include "frameDissector.hxx"
+#include "frameDissectorInternal.hxx"
 
 namespace sol::frameDissector
 {
+	using namespace internal;
+
 	int dissectFrame(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
 	{
 		return 0;

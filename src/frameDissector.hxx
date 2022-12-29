@@ -3,12 +3,8 @@
 #ifndef SOL_FRAME_DISSECTOR_HXX
 #define SOL_FRAME_DISSECTOR_HXX
 
-#include <cstdint>
-
 namespace sol::frameDissector
 {
-	static int32_t solAnalyzerFrameProtocol{-1};
-
 	void registerProtoInfo();
 	void registerHandoff();
 } // namespace sol::frameDissector
