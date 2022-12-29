@@ -2,8 +2,12 @@
 #ifndef SOL_FRAME_DISSECTOR_HXX
 #define SOL_FRAME_DISSECTOR_HXX
 
+#include <epan/packet.h>
+
 namespace sol::frameDissector
 {
+	extern dissector_handle_t solAnalyzerFrameDissector;
+
 	void registerProtoInfo();
 	void registerHandoff();
 } // namespace sol::frameDissector

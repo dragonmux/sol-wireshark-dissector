@@ -8,6 +8,8 @@ namespace sol::frameDissector
 {
 	using namespace internal;
 
+	dissector_handle_t solAnalyzerFrameDissector{nullptr};
+
 	static int dissectFrame(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
 	{
 		proto_item *protocol{};
@@ -29,6 +31,6 @@ namespace sol::frameDissector
 
 	void registerHandoff()
 	{
-		auto handle = register_dissector("sol.analyzer.frame", dissectFrame, solAnalyzerFrameProtocol);
+		solAnalyzerFrameDissector = register_dissector("sol.analyzer.frame", dissectFrame, solAnalyzerFrameProtocol);
 	}
 } // namespace sol::frameDissector
