@@ -24,8 +24,8 @@ namespace sol::frameDissector
 	{
 		solAnalyzerFrameProtocol = proto_register_protocol(
 			"SOL USB Analyzer Protocol",
-			"SOL_USB_Analyzer",
-			"sol.analyzer"
+			"SOL USB Analyzer Proto",
+			"sol.analyzer.frame"
 		);
 
 		proto_register_field_array(solAnalyzerFrameProtocol, fields.data(), fields.size());

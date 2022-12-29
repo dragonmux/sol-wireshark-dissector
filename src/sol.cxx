@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include <epan/packet.h>
 
+#include "deviceDissector.hxx"
 #include "frameReassembly.hxx"
 #include "frameDissector.hxx"
 #include "packetDissector.hxx"
@@ -18,6 +19,7 @@ const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
 const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 
 // Define the internal plugin variables for the dissectors
+static proto_plugin deviceDissector;
 static proto_plugin framingDissector;
 static proto_plugin frameDissector;
 static proto_plugin packetDissector;
@@ -25,6 +27,11 @@ static proto_plugin packetDissector;
 // Register the native wireshark plugin
 void plugin_register()
 {
+	// Register the device dissector
+	deviceDissector.register_protoinfo = sol::deviceDissector::registerProtoInfo;
+	deviceDissector.register_handoff = sol::deviceDissector::registerHandoff;
+	proto_register_plugin(&deviceDissector);
+
 	// Register the frame reassembly dissector
 	framingDissector.register_protoinfo = sol::frameReassembly::registerProtoInfo;
 	framingDissector.register_handoff = sol::frameReassembly::registerHandoff;
