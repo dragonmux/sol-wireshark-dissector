@@ -17,22 +17,25 @@ const char *const plugin_version = "0.0.1";
 const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
 const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 
+// Define the internal plugin variables for the dissectors
+static proto_plugin framingDissector;
+static proto_plugin frameDissector;
+static proto_plugin packetDissector;
+
 // Register the native wireshark plugin
 void plugin_register()
 {
-	// Define the internal plugin variables for the dissectors
-	static proto_plugin framingDissector;
-	static proto_plugin frameDissector;
-	static proto_plugin packetDissector;
-
+	// Register the frame reassembly dissector
 	framingDissector.register_protoinfo = sol::frameReassembly::registerProtoInfo;
 	framingDissector.register_handoff = sol::frameReassembly::registerHandoff;
 	proto_register_plugin(&framingDissector);
 
+	// Register the frame dissector
 	frameDissector.register_protoinfo = sol::frameDissector::registerProtoInfo;
 	frameDissector.register_handoff = sol::frameDissector::registerHandoff;
 	proto_register_plugin(&frameDissector);
 
+	// Register the protocol dissector
 	packetDissector.register_protoinfo = sol::packetDissector::registerProtoInfo;
 	packetDissector.register_handoff = sol::packetDissector::registerHandoff;
 	proto_register_plugin(&packetDissector);
