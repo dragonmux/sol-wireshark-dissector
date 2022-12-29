@@ -2,10 +2,14 @@
 #include <optional>
 #include <epan/packet.h>
 #include <epan/proto_data.h>
+#include <substrate/console>
 
 #include "frameReassembly.hxx"
 #include "frameReassemblyInternal.hxx"
 #include "frameDissector.hxx"
+
+using namespace std::literals::string_view_literals;
+using substrate::console;
 
 namespace sol::frameReassembly
 {
@@ -73,7 +77,72 @@ namespace sol::frameReassembly
 		// If we're in the middle of reassembly, and have a valid frame
 		else if (frameFragment)
 		{
-			return 0;
+			// Extract the frame reference
+			auto &frame{*frameFragment};
+			// frame.fragmentLength is the mount of data seen thus far, not the total length of the frame
+			// thus is the same as an offset into the total frame
+			const auto offset{frame.fragmentLength};
+			// If this packet does not complete the frame reassembly
+			if (offset + len < frame.totalLength)
+			{
+				col_add_fstr(pinfo->cinfo, COL_INFO, "Fragmented frame, Size %u", len);
+				// Accumulate total length
+				frame.fragmentLength += len;
+				// Append the buffer to the frame reassembly table
+				fragment_add(&frameReassemblyTable, buffer, 0, pinfo, frame.frameNumber, nullptr, offset, len, TRUE);
+				// Add the frame pointer into the protocol specific data's slot 0
+				p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 0, frame.frameNumberPtr);
+				// Add raw frame data to tree
+				proto_tree_add_item(tree, hfFrameData, buffer, 0, -1, ENC_NA);
+				// Signal to the device disector that we've completed processing this packet
+				return len;
+			}
+
+			// Append column info with the total length of the reassembled frame
+			col_add_fstr(pinfo->cinfo, COL_INFO, "Frame, Size %u", frame.totalLength);
+			// fragment_add doesn't deal with completed reassembly, therefore we need to use the check version
+			// the FALSE indicates that the call will add the fully reassembled frame to the reassembled section
+			// of the reassembly table.
+			fragment = fragment_add_check(&frameReassemblyTable, buffer, 0, pinfo, frame.frameNumber, NULL, offset,
+				frame.totalLength - offset, FALSE);
+			// Add the frame pointer into the protocol specific data's slot 0
+			p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 0, frame.frameNumberPtr);
+			// Finally, reset the frame reassembly state having grabbed the frame number
+			const auto frameNumber{frame.frameNumber};
+			frameFragment.reset();
+
+			// If we have a valid reassembled frame
+			if (fragment)
+			{
+				// If the frame did not consume the entire incomming buffer, process the reassembled frame specially
+				if (offset + len > frame.totalLength)
+				{
+					auto *const frameBuffer{process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame",
+						fragment, &solAnalyzerFrameItems, NULL, tree)};
+					processFrames(frameBuffer, pinfo, tree);
+					buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
+				}
+				else
+					buffer = process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame", fragment,
+						&solAnalyzerFrameItems, NULL, tree);
+			}
+			else
+			{
+				// For some reason the fragment check return failed, properly print an error
+				console.error("fragment_add_check() returned nullptr for frame reassembly ("sv, frameNumber, ")"sv);
+				// Then grab whatever's left of this frame to process below.
+				const auto frameOffset{frame.totalLength - offset};
+				const auto frameLength{len - frameOffset};
+				buffer = tvb_new_subset_length(buffer, frameOffset, frameLength);
+			}
+
+			// If we are in an invalid state, abort
+			if (!buffer)
+			{
+				console.error("sol::frameReassembly::dissectFraming("sv, frameNumber,
+					"): buffer is invalid, dazed and confused"sv);
+				return len;
+			}
 		}
 
 		if (PINFO_FD_VISITED(pinfo))
