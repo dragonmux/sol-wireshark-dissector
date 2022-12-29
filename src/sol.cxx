@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include <epan/packet.h>
 
+#include "frameDissector.hxx"
 #include "packetDissector.hxx"
 
 extern "C"
@@ -20,6 +21,11 @@ void plugin_register()
 {
 	// Define the internal plugin variables for the dissectors
 	static proto_plugin packetDissector;
+	static proto_plugin frameDissector;
+
+	frameDissector.register_protoinfo = sol::frameDissector::registerProtoInfo;
+	frameDissector.register_handoff = sol::frameDissector::registerHandoff;
+	proto_register_plugin(&frameDissector);
 
 	packetDissector.register_protoinfo = sol::packetDissector::registerProtoInfo;
 	packetDissector.register_handoff = sol::packetDissector::registerHandoff;
