@@ -16,12 +16,12 @@ namespace sol::frameReassembly::internal
 	struct frameFragment_t final
 	{
 		uint32_t totalLength;
-		uint32_t length;
+		uint32_t fragmentLength;
 		uint32_t frameNumber;
 		uint32_t *frameNumberPtr;
 
-		frameFragment_t(const uint32_t packetLength, const uint32_t len, const uint32_t frameNum) noexcept :
-			totalLength{packetLength}, length{len}, frameNumber{frameNum},
+		frameFragment_t(const uint32_t frameLength, const uint32_t fragLength, const uint32_t frameNum) noexcept :
+			totalLength{frameLength}, fragmentLength{fragLength}, frameNumber{frameNum},
 			frameNumberPtr
 			{
 				[](const uint32_t frameNumber)
