@@ -14,6 +14,33 @@ namespace sol::frameReassembly
 	reassembly_table frameReassemblyTable{};
 	uint32_t processedFrames{};
 
+	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree)
+	{
+		uint32_t bufferLength = tvb_captured_length(buffer);
+		uint32_t offset{};
+		for (; offset < bufferLength; )
+		{
+			// ntohs == be16toHost
+			const auto frameLength = tvb_get_ntohs(buffer, offset) + 2U;
+			const int32_t remainder = bufferLength - (offset + frameLength);
+			// Fragment, needs reassembly.
+			if (remainder < 0)
+			{
+				frameFragment_t frame{frameLength, bufferLength - offset, processedFrames};
+				frameFragment = frame;
+				fragment_add(&frameReassemblyTable, buffer, offset, pinfo, processedFrames, nullptr, 0,
+					frame.fragmentLength, TRUE);
+				break;
+			}
+			// Not a fragment, excellent! Process it up to the frame dissector.
+			auto *const frameBuffer = tvb_new_subset_length(buffer, offset, frameLength);
+			call_dissector(sol::frameDissector::solAnalyzerFrameDissector, frameBuffer, pinfo, tree);
+			++processedFrames;
+			offset += frameLength;
+		}
+		return offset;
+	}
+
 	static int dissectFraming(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, void *const)
 	{
 		// Skip zero length or mismatched length packets
@@ -58,30 +85,7 @@ namespace sol::frameReassembly
 		// 3: We are in the first pass and we have just completed reassembly OR
 		// 4: We are in the first pass and have no clue if the packet needs reassembly or not
 
-		// If we have done reassembly, we now need the new buffer length
-		len = tvb_captured_length(buffer);
-		uint32_t offset{};
-		for (; offset < len; )
-		{
-			// ntohs == be16toHost
-			const auto frameLength = tvb_get_ntohs(buffer, offset) + 2U;
-			const int32_t remainder = len - (offset + frameLength);
-			// Fragment, needs reassembly.
-			if (remainder < 0)
-			{
-				frameFragment_t frame{frameLength, len - offset, processedFrames};
-				frameFragment = frame;
-				fragment_add(&frameReassemblyTable, buffer, offset, pinfo, processedFrames, nullptr, 0,
-					frame.fragmentLength, TRUE);
-				break;
-			}
-			// Not a fragment, excellent! Process it up to the frame dissector.
-			auto *const frameBuffer = tvb_new_subset_length(buffer, offset, frameLength);
-			call_dissector(sol::frameDissector::solAnalyzerFrameDissector, frameBuffer, pinfo, tree);
-			++processedFrames;
-			offset += frameLength;
-		}
-		return offset;
+		return processFrames(buffer, pinfo, tree);
 	}
 
 	void registerProtoInfo()
