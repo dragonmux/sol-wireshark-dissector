@@ -21,7 +21,8 @@ namespace sol::frameReassembly
 	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, const bool fragment)
 	{
 		// Get any possible frame information from the proto-specific data in slot 1
-		const auto *const startingFrameNumber{p_get_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 1)};
+		const auto *const startingFrameNumber{static_cast<const uint32_t *>(p_get_proto_data(wmem_file_scope(),
+			pinfo, solAnalyzerFrameProtocol, 1))};
 		if (!startingFrameNumber)
 		{
 			// Set up a new starting frame number for this frame if we've never processed it before.
@@ -38,7 +39,7 @@ namespace sol::frameReassembly
 				if (fragment || !fragmentFrameNumber)
 				{
 					if (startingFrameNumber)
-						return *static_cast<const uint32_t *>(startingFrameNumber);
+						return *startingFrameNumber;
 					return processedFrames;
 				}
 				return *static_cast<const uint32_t *>(fragmentFrameNumber) + 1U;
@@ -54,7 +55,7 @@ namespace sol::frameReassembly
 			// Fragment, needs reassembly.
 			if (remainder < 0)
 			{
-				if (!startingFrameNumber)
+				if (!PINFO_FD_VISITED(pinfo))
 				{
 					frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
 					frameFragment = frame;
@@ -69,7 +70,7 @@ namespace sol::frameReassembly
 			++frameNumber;
 			offset += frameLength;
 		}
-		if (!startingFrameNumber)
+		if (!startingFrameNumber || *startingFrameNumber + 1U == processedFrames)
 			processedFrames = frameNumber;
 		return bufferLength;
 	}
