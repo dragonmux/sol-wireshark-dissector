@@ -182,7 +182,8 @@ namespace sol::frameReassembly
 				if (offset + len > frame.totalLength)
 				{
 					processFrames(frameBuffer, pinfo, subtree, true);
-					buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
+					const auto fragmentLength{frame.totalLength - offset};
+					buffer = tvb_new_subset_length(buffer, fragmentLength, len - fragmentLength);
 				}
 				else
 					buffer = frameBuffer;
