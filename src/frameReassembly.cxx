@@ -68,6 +68,9 @@ namespace sol::frameReassembly
 			}()
 		};
 
+		proto_item *item{};
+		auto *const subtree{proto_tree_add_subtree(tree, buffer, 0, -1, ettFrames, &item, "SOL USB Analyzer frames")};
+
 		// If the frame has been reassembled
 		if (fragment)
 		{
@@ -93,7 +96,7 @@ namespace sol::frameReassembly
 			// Process the reassembled part of the frame
 			if (fragment->len < len)
 			{
-				processFrames(frameBuffer, pinfo, tree);
+				processFrames(frameBuffer, pinfo, subtree);
 				buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
 			}
 			else
@@ -148,7 +151,7 @@ namespace sol::frameReassembly
 				// If the frame did not consume the entire incomming buffer, process the reassembled frame specially
 				if (offset + len > frame.totalLength)
 				{
-					processFrames(frameBuffer, pinfo, tree);
+					processFrames(frameBuffer, pinfo, subtree);
 					buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
 				}
 				else
@@ -182,7 +185,7 @@ namespace sol::frameReassembly
 		// 3: We are in the first pass and we have just completed reassembly OR
 		// 4: We are in the first pass and have no clue if the packet needs reassembly or not
 
-		return processFrames(buffer, pinfo, tree);
+		return processFrames(buffer, pinfo, subtree);
 	}
 
 	void registerProtoInfo()

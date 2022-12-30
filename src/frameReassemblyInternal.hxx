@@ -27,12 +27,14 @@ namespace sol::frameReassembly::internal
 			{
 				[](const uint32_t frameNumber)
 				{
-					auto *const result = g_new0(uint32_t, 1);
+					auto *const result{g_new0(uint32_t, 1)};
 					*result = frameNumber;
 					return result;
 				}(frameNum)
 			} { }
 	};
+
+	static int32_t ettFrames{-1};
 
 	static int32_t hfFrameData{-1};
 
@@ -55,6 +57,7 @@ namespace sol::frameReassembly::internal
 	{
 		substrate::make_array
 		({
+			&ettFrames,
 			&ettFrameFragment,
 			&ettFrameFragments,
 		})
