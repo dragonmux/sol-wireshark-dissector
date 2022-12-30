@@ -18,6 +18,18 @@ namespace sol::frameReassembly
 	reassembly_table frameReassemblyTable{};
 	uint32_t processedFrames{};
 
+	static void beginReassembly(tvbuff_t *buffer, packet_info *const pinfo, const uint32_t frameLength,
+		const uint32_t bufferLength, const uint32_t offset, const uint32_t frameNumber)
+	{
+		if (!PINFO_FD_VISITED(pinfo))
+		{
+			frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
+			frameFragment = frame;
+			fragment_add(&frameReassemblyTable, buffer, offset, pinfo, frameNumber, nullptr, 0,
+				frame.fragmentLength, TRUE);
+		}
+	}
+
 	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, const bool fragment)
 	{
 		// Get any possible frame information from the proto-specific data in slot 1
@@ -50,25 +62,26 @@ namespace sol::frameReassembly
 		for (uint32_t offset{}; offset < bufferLength;)
 		{
 			// ntohs == be16toHost
-			const auto frameLength = tvb_get_ntohs(buffer, offset) + 2U;
+			const auto frameLength{tvb_get_ntohs(buffer, offset) + 2U};
 			const int32_t remainder = bufferLength - (offset + frameLength);
 			// Fragment, needs reassembly.
 			if (remainder < 0)
 			{
-				if (!PINFO_FD_VISITED(pinfo))
-				{
-					frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
-					frameFragment = frame;
-					fragment_add(&frameReassemblyTable, buffer, offset, pinfo, frameNumber, nullptr, 0,
-						frame.fragmentLength, TRUE);
-				}
+				beginReassembly(buffer, pinfo, frameLength, bufferLength, offset, frameNumber);
 				break;
 			}
 			// Not a fragment, excellent! Process it up to the frame dissector.
-			auto *const frameBuffer = tvb_new_subset_length(buffer, offset, frameLength);
+			auto *const frameBuffer{tvb_new_subset_length(buffer, offset, frameLength)};
 			call_dissector(sol::frameDissector::solAnalyzerFrameDissector, frameBuffer, pinfo, tree);
 			++frameNumber;
 			offset += frameLength;
+			// If there is a single-byte fragment left over, it will need reassembly (special-cased)
+			if (remainder == 1)
+			{
+				const auto frameByte{tvb_get_guint8(buffer, offset)};
+				beginReassembly(buffer, pinfo, (uint16_t{frameByte} << 8U) | 2U, bufferLength, offset, frameNumber);
+				offset += remainder;
+			}
 		}
 		if (!startingFrameNumber || *startingFrameNumber + 1U == processedFrames)
 			processedFrames = frameNumber;
@@ -143,6 +156,12 @@ namespace sol::frameReassembly
 		{
 			// Extract the frame reference
 			auto &frame{*frameFragment};
+			// Handle the special-case of the previous chunk of the fragment being just one byte
+			if (frame.fragmentLength == 1U)
+			{
+				const auto frameByte{tvb_get_guint8(buffer, 0)};
+				frame.totalLength += frameByte;
+			}
 			// frame.fragmentLength is the mount of data seen thus far, not the total length of the frame
 			// thus is the same as an offset into the total frame
 			const auto offset{frame.fragmentLength};
