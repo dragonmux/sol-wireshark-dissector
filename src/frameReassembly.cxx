@@ -100,6 +100,7 @@ namespace sol::frameReassembly
 
 		proto_item *item{};
 		auto *const subtree{proto_tree_add_subtree(tree, buffer, 0, -1, ettFrames, &item, "SOL USB Analyzer frames")};
+		col_set_str(pinfo->cinfo, COL_PROTOCOL, "SOL USB Analyzer");
 
 		// If the frame has been reassembled
 		if (fragment)
