@@ -102,7 +102,7 @@ namespace sol::frameReassembly
 		auto *const subtree{proto_tree_add_subtree(tree, buffer, 0, -1, ettFrames, &item, "SOL USB Analyzer frames")};
 		col_set_str(pinfo->cinfo, COL_PROTOCOL, "SOL USB Analyzer");
 
-		// If the frame has been reassembled
+		// If the frame has been involved in reassemblembly
 		if (fragment)
 		{
 			const auto frameNumber{*static_cast<uint32_t *>(p_get_proto_data(wmem_file_scope(), pinfo,
@@ -114,10 +114,10 @@ namespace sol::frameReassembly
 				col_add_fstr(pinfo->cinfo, COL_INFO, "[Fragmented Frame #%u] Size %u", frameNumber, fragment->len);
 
 				// Add the raw buffer data to the tree
-				proto_tree_add_item(tree, hfFrameData, fragment->tvb_data, fragment->offset, -1, ENC_NA);
+				proto_tree_add_item(tree, hfFrameData, fragment->tvb_data, 0, -1, ENC_NA);
 				// And output the frame reassembly hyperlink in tree due to this not being the
 				// final frame in the assembly sequence
-				process_reassembled_data(fragment->tvb_data, fragment->offset, pinfo, "Reassembled Analyser Data Frame",
+				process_reassembled_data(fragment->tvb_data, 0, pinfo, "Reassembled Analyser Data Frame",
 					fragment, &solAnalyzerFrameItems, NULL, tree);
 				return len;
 			}
@@ -137,14 +137,16 @@ namespace sol::frameReassembly
 			// Set the info column text appropriately
 			col_add_fstr(pinfo->cinfo, COL_INFO, "[Frame #%u (%u)]", frameNumber, fragment->datalen);
 		}
-		// If we're in the middle of reassembly, and have a valid frame
-		else if (frameFragment)
+		// If we're in the middle of reassembly, and have a valid unvisited frame
+		else if (frameFragment && !PINFO_FD_VISITED(pinfo))
 		{
 			// Extract the frame reference
 			auto &frame{*frameFragment};
 			// frame.fragmentLength is the mount of data seen thus far, not the total length of the frame
 			// thus is the same as an offset into the total frame
 			const auto offset{frame.fragmentLength};
+			// Add the frame pointer into the protocol specific data's slot 0
+			p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 0, frame.frameNumberPtr);
 			// If this packet does not complete the frame reassembly
 			if (offset + len < frame.totalLength)
 			{
@@ -153,8 +155,6 @@ namespace sol::frameReassembly
 				frame.fragmentLength += len;
 				// Append the buffer to the frame reassembly table
 				fragment_add(&frameReassemblyTable, buffer, 0, pinfo, frame.frameNumber, nullptr, offset, len, TRUE);
-				// Add the frame pointer into the protocol specific data's slot 0
-				p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 0, frame.frameNumberPtr);
 				// Add raw frame data to tree
 				proto_tree_add_item(tree, hfFrameData, buffer, 0, -1, ENC_NA);
 				// Signal to the device disector that we've completed processing this packet
@@ -168,8 +168,6 @@ namespace sol::frameReassembly
 			// of the reassembly table.
 			fragment = fragment_add_check(&frameReassemblyTable, buffer, 0, pinfo, frame.frameNumber, NULL, offset,
 				frame.totalLength - offset, FALSE);
-			// Add the frame pointer into the protocol specific data's slot 0
-			p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 0, frame.frameNumberPtr);
 			// Finally, reset the frame reassembly state having grabbed the frame number
 			const auto frameNumber{frame.frameNumber};
 			frameFragment.reset();
