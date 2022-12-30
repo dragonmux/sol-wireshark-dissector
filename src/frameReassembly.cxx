@@ -138,11 +138,21 @@ namespace sol::frameReassembly
 
 			auto *const frameBuffer{process_reassembled_data(buffer, 0, pinfo, "Reassembled Analyzer Data Frame",
 				fragment, &solAnalyzerFrameItems, NULL, tree)};
+			const auto fragmentLength
+			{
+				[](const fragment_head *const fragmentHead)
+				{
+					const fragment_item *fragmentItem{fragmentHead->next};
+					while (fragmentItem->next)
+						fragmentItem = fragmentItem->next;
+					return fragmentItem->len;
+				}(fragment)
+			};
 			// Process the reassembled part of the frame
-			if (fragment->len < len)
+			if (fragmentLength < len)
 			{
 				processFrames(frameBuffer, pinfo, subtree, true);
-				buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
+				buffer = tvb_new_subset_length(buffer, fragmentLength, len - fragmentLength);
 			}
 			else
 				buffer = frameBuffer;
