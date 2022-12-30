@@ -85,6 +85,8 @@ namespace sol::frameReassembly
 		}
 		if (!startingFrameNumber || *startingFrameNumber + 1U == processedFrames)
 			processedFrames = frameNumber;
+		if (PINFO_FD_VISITED(pinfo) && !fragment && startingFrameNumber)
+			col_append_fstr(pinfo->cinfo, COL_INFO, "[Frames #%u-#%u]", *startingFrameNumber, frameNumber - 1U);
 		return bufferLength;
 	}
 
@@ -159,7 +161,7 @@ namespace sol::frameReassembly
 			// Now handle the rest
 
 			// Set the info column text appropriately
-			col_add_fstr(pinfo->cinfo, COL_INFO, "[Frame #%u (%u)]", frameNumber, fragment->datalen);
+			col_add_fstr(pinfo->cinfo, COL_INFO, "[Defragmented Frame #%u (%u)]", frameNumber, fragment->datalen);
 		}
 		// If we're in the middle of reassembly, and have a valid unvisited frame
 		else if (frameFragment && !PINFO_FD_VISITED(pinfo))
@@ -235,6 +237,8 @@ namespace sol::frameReassembly
 				return len;
 			}
 		}
+		else if (PINFO_FD_VISITED(pinfo))
+			col_set_str(pinfo->cinfo, COL_INFO, "");
 
 		// The possible states we can be in for the following block of code are as follows:
 		// 1: We are in the second pass and have a fully reassembled frame OR
