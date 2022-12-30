@@ -41,7 +41,7 @@ namespace sol::frameReassembly
 						return *static_cast<const uint32_t *>(startingFrameNumber);
 					return processedFrames;
 				}
-				return *static_cast<const uint32_t *>(startingFrameNumber) + 1U;
+				return *static_cast<const uint32_t *>(fragmentFrameNumber) + 1U;
 			}()
 		};
 
@@ -54,10 +54,13 @@ namespace sol::frameReassembly
 			// Fragment, needs reassembly.
 			if (remainder < 0)
 			{
-				frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
-				frameFragment = frame;
-				fragment_add(&frameReassemblyTable, buffer, offset, pinfo, frameNumber, nullptr, 0,
-					frame.fragmentLength, TRUE);
+				if (!startingFrameNumber)
+				{
+					frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
+					frameFragment = frame;
+					fragment_add(&frameReassemblyTable, buffer, offset, pinfo, frameNumber, nullptr, 0,
+						frame.fragmentLength, TRUE);
+				}
 				break;
 			}
 			// Not a fragment, excellent! Process it up to the frame dissector.
