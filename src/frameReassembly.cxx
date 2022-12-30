@@ -18,8 +18,33 @@ namespace sol::frameReassembly
 	reassembly_table frameReassemblyTable{};
 	uint32_t processedFrames{};
 
-	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree)
+	static int processFrames(tvbuff_t *buffer, packet_info *const pinfo, proto_tree *const tree, const bool fragment)
 	{
+		// Get any possible frame information from the proto-specific data in slot 1
+		const auto *const startingFrameNumber{p_get_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 1)};
+		if (!startingFrameNumber)
+		{
+			// Set up a new starting frame number for this frame if we've never processed it before.
+			auto *const frameNumber{g_new(uint32_t, 1)};
+			*frameNumber = processedFrames;
+			p_add_proto_data(wmem_file_scope(), pinfo, solAnalyzerFrameProtocol, 1, frameNumber);
+		}
+		auto frameNumber
+		{
+			[=]()
+			{
+				const auto *const fragmentFrameNumber{p_get_proto_data(wmem_file_scope(), pinfo,
+					solAnalyzerFrameProtocol, 0)};
+				if (fragment || !fragmentFrameNumber)
+				{
+					if (startingFrameNumber)
+						return *static_cast<const uint32_t *>(startingFrameNumber);
+					return processedFrames;
+				}
+				return *static_cast<const uint32_t *>(startingFrameNumber) + 1U;
+			}()
+		};
+
 		uint32_t bufferLength = tvb_captured_length(buffer);
 		for (uint32_t offset{}; offset < bufferLength;)
 		{
@@ -29,18 +54,20 @@ namespace sol::frameReassembly
 			// Fragment, needs reassembly.
 			if (remainder < 0)
 			{
-				frameFragment_t frame{frameLength, bufferLength - offset, processedFrames};
+				frameFragment_t frame{frameLength, bufferLength - offset, frameNumber};
 				frameFragment = frame;
-				fragment_add(&frameReassemblyTable, buffer, offset, pinfo, processedFrames, nullptr, 0,
+				fragment_add(&frameReassemblyTable, buffer, offset, pinfo, frameNumber, nullptr, 0,
 					frame.fragmentLength, TRUE);
 				break;
 			}
 			// Not a fragment, excellent! Process it up to the frame dissector.
 			auto *const frameBuffer = tvb_new_subset_length(buffer, offset, frameLength);
 			call_dissector(sol::frameDissector::solAnalyzerFrameDissector, frameBuffer, pinfo, tree);
-			++processedFrames;
+			++frameNumber;
 			offset += frameLength;
 		}
+		if (!startingFrameNumber)
+			processedFrames = frameNumber;
 		return bufferLength;
 	}
 
@@ -96,7 +123,7 @@ namespace sol::frameReassembly
 			// Process the reassembled part of the frame
 			if (fragment->len < len)
 			{
-				processFrames(frameBuffer, pinfo, subtree);
+				processFrames(frameBuffer, pinfo, subtree, true);
 				buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
 			}
 			else
@@ -151,7 +178,7 @@ namespace sol::frameReassembly
 				// If the frame did not consume the entire incomming buffer, process the reassembled frame specially
 				if (offset + len > frame.totalLength)
 				{
-					processFrames(frameBuffer, pinfo, subtree);
+					processFrames(frameBuffer, pinfo, subtree, true);
 					buffer = tvb_new_subset_length(buffer, fragment->len, len - fragment->len);
 				}
 				else
@@ -176,16 +203,13 @@ namespace sol::frameReassembly
 			}
 		}
 
-		if (PINFO_FD_VISITED(pinfo))
-			return len;
-
 		// The possible states we can be in for the following block of code are as follows:
 		// 1: We are in the second pass and have a fully reassembled frame OR
 		// 2: We are in the second pass and the frame did not require and reassembly OR
 		// 3: We are in the first pass and we have just completed reassembly OR
 		// 4: We are in the first pass and have no clue if the packet needs reassembly or not
 
-		return processFrames(buffer, pinfo, subtree);
+		return processFrames(buffer, pinfo, subtree, false);
 	}
 
 	void registerProtoInfo()
